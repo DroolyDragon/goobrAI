@@ -293,4 +293,79 @@
     <!-- Bottom Info -->
     <div class="info">
       <strong>GoobrAI</strong> is a simple frontend for open-source video models.<br>
-      Recommended model: <strong>Lightricks
+      Recommended model: <strong>Lightricks/LTX-Video</strong> (runs well on 12–24 GB GPUs).<br><br>
+      <strong>Quick local setup (one command):</strong><br>
+      <code style="background:#111; padding:4px 8px; border-radius:6px;">pip install diffusers torch accelerate imageio imageio-ffmpeg</code><br><br>
+      Full instructions and model link: 
+      <a href="https://huggingface.co/Lightricks/LTX-Video" target="_blank">huggingface.co/Lightricks/LTX-Video</a>
+    </div>
+  </div>
+
+  <script>
+    let currentTab = 0;
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('t2v-form').style.display = tab === 0 ? 'block' : 'none';
+      document.getElementById('i2v-form').style.display = tab === 1 ? 'block' : 'none';
+      
+      document.getElementById('tab0').classList.toggle('active', tab === 0);
+      document.getElementById('tab1').classList.toggle('active', tab === 1);
+    }
+
+    function generateVideo(isI2V = false) {
+      const result = document.getElementById('result');
+      const progressContainer = document.getElementById('progress-container');
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+      const video = document.getElementById('output-video');
+      
+      result.style.display = 'block';
+      video.style.display = 'none';
+      progressContainer.style.display = 'block';
+      
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 18 + 9;
+        if (progress > 100) progress = 100;
+        
+        progressBar.style.width = progress + '%';
+        progressText.textContent = Math.floor(progress) + '%';
+        
+        if (progress >= 100) {
+          clearInterval(interval);
+          progressContainer.style.display = 'none';
+          
+          // FIXED: Using a short, reliable CORS-friendly demo video (no more CORB error)
+          video.src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny_320x180_10s_1MB.mp4";
+          video.style.display = 'block';
+        }
+      }, 110);
+    }
+
+    function downloadVideo() {
+      const video = document.getElementById('output-video');
+      if (video.src) {
+        const a = document.createElement('a');
+        a.href = video.src;
+        a.download = 'goobrai-video.mp4';
+        a.click();
+      }
+    }
+
+    function resetUI() {
+      document.getElementById('result').style.display = 'none';
+    }
+
+    // Keyboard shortcut: press Enter to generate
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const activeForm = currentTab === 0 ? 't2v-form' : 'i2v-form';
+        if (document.getElementById(activeForm).style.display !== 'none') {
+          generateVideo(currentTab === 1);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
