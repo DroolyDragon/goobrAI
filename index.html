@@ -1,26 +1,175 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AI Video from Prompt</title>
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.3.1?dev",
-        "react-dom": "https://esm.sh/react-dom@18.3.1?dev",
-        "react-dom/client": "https://esm.sh/react-dom@18.3.1/client?dev",
-        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime?dev",
-        "@websim/remotion/player": "https://esm.websim.com/@websim/remotion/player",
-        "@remotion/player": "https://esm.sh/@remotion/player@4.0.350?external=react,react-dom&dev",
-        "remotion": "https://esm.sh/remotion@4.0.350?external=react,react-dom&dev"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LTX Video - Fast Open Text-to-Video</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body { font-family: system-ui, sans-serif; }
+    .video-container { background: #111; border-radius: 12px; overflow: hidden; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+
+  <div class="max-w-4xl mx-auto p-6">
+    <div class="text-center py-8">
+      <h1 class="text-5xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+        LTX Video
+      </h1>
+      <p class="text-xl text-zinc-400">Fast DiT-based Text-to-Video & Image-to-Video (from Lightricks)</p>
+      <div class="flex justify-center gap-4 mt-4">
+        <span class="px-4 py-1 bg-zinc-800 rounded-full text-sm">2B / 13B variants</span>
+        <span class="px-4 py-1 bg-zinc-800 rounded-full text-sm">Real-time capable</span>
+        <span class="px-4 py-1 bg-emerald-600/20 text-emerald-400 rounded-full text-sm">Easy on 24GB GPUs</span>
+      </div>
+    </div>
+
+    <div class="flex border-b border-zinc-700 mb-6">
+      <button onclick="switchTab(0)" id="tab0" class="tab-button active px-6 py-3 border-b-2 border-cyan-500 text-cyan-400 font-medium">Text-to-Video</button>
+      <button onclick="switchTab(1)" id="tab1" class="tab-button px-6 py-3 text-zinc-400 hover:text-white">Image-to-Video</button>
+    </div>
+
+    <!-- T2V -->
+    <div id="t2v-form">
+      <div class="mb-6">
+        <label class="block text-sm text-zinc-400 mb-2">Describe your video</label>
+        <textarea id="prompt" rows="4" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4 text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500" placeholder="A serene mountain lake at sunrise, mist rising from the water, gentle ripples..."></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <label class="block text-sm text-zinc-400 mb-2">Resolution</label>
+          <select id="resolution" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3">
+            <option value="768x512">768×512 (fast)</option>
+            <option value="1216x704">1216×704 (higher quality)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-zinc-400 mb-2">Frames</label>
+          <select id="frames" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3">
+            <option value="81">81 frames (~3–4 sec)</option>
+            <option value="161">161 frames (~6–7 sec)</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="generateVideo()" class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
+        <i class="fas fa-bolt"></i>
+        Generate Video with LTX
+      </button>
+    </div>
+
+    <!-- I2V -->
+    <div id="i2v-form" class="hidden">
+      <div class="mb-6">
+        <label class="block text-sm text-zinc-400 mb-2">Upload starting image</label>
+        <input type="file" id="image-upload" accept="image/*" class="block w-full text-sm text-zinc-400 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:bg-zinc-800 file:text-white">
+      </div>
+      <div class="mb-6">
+        <label class="block text-sm text-zinc-400 mb-2">Motion description</label>
+        <textarea id="i2v-prompt" rows="3" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4 text-white" placeholder="Camera slowly pans right as wind blows through the trees..."></textarea>
+      </div>
+      <button onclick="generateVideo(true)" class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-3">
+        <i class="fas fa-bolt"></i>
+        Generate Image-to-Video
+      </button>
+    </div>
+
+    <!-- Result -->
+    <div id="result" class="mt-12 hidden">
+      <div class="video-container mb-6">
+        <div id="progress-container" class="p-6">
+          <div class="flex justify-between text-sm mb-2">
+            <span>Generating with LTX Video...</span>
+            <span id="progress-text">0%</span>
+          </div>
+          <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-2 bg-gradient-to-r from-cyan-500 to-purple-500 w-0 transition-all"></div>
+          </div>
+          <p class="text-xs text-zinc-500 mt-3">This is a demo. On your GPU it will be much faster with the real model.</p>
+        </div>
+        <video id="output-video" class="w-full hidden" controls autoplay loop></video>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="downloadVideo()" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-2xl font-medium">⬇ Download MP4</button>
+        <button onclick="resetUI()" class="flex-1 bg-zinc-800 hover:bg-zinc-700 py-3 rounded-2xl font-medium">New Video</button>
+      </div>
+    </div>
+
+    <div class="mt-16 text-zinc-400 text-sm space-y-4">
+      <h2 class="text-white text-2xl">Why LTX Video?</h2>
+      <p>One of the fastest open text-to-video models. The distilled 2B version runs great on consumer GPUs (RTX 4090 / 3090 recommended, works with ~12–24 GB VRAM). Supports high FPS and good motion.</p>
+      
+      <p><strong>Quick local setup (easiest with Diffusers):</strong></p>
+      <pre class="bg-zinc-900 p-4 rounded-xl text-xs overflow-auto">pip install diffusers torch accelerate imageio imageio-ffmpeg
+python -c "
+from diffusers import LTXPipeline
+from diffusers.utils import export_to_video
+import torch
+pipe = LTXPipeline.from_pretrained('Lightricks/LTX-Video', torch_dtype=torch.bfloat16)
+pipe.to('cuda')
+# then generate...
+"</pre>
+
+      <p>Full repo: <a href="https://huggingface.co/Lightricks/LTX-Video" target="_blank" class="text-cyan-400 hover:underline">Lightricks/LTX-Video on Hugging Face</a></p>
+      <p>Alternative strong options from your list: Wan2.2-TI2V-5B (great quality) or CogVideoX-5B.</p>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('t2v-form').classList.toggle('hidden', tab === 1);
+      document.getElementById('i2v-form').classList.toggle('hidden', tab === 0);
+      document.querySelectorAll('.tab-button').forEach((b, i) => {
+        b.classList.toggle('active', i === tab);
+        b.classList.toggle('border-cyan-500', i === tab);
+        b.classList.toggle('text-cyan-400', i === tab);
+      });
+    }
+
+    function generateVideo(isI2V = false) {
+      const result = document.getElementById('result');
+      const progressBar = document.getElementById('progress-bar');
+      const progressText = document.getElementById('progress-text');
+      const videoEl = document.getElementById('output-video');
+      
+      result.classList.remove('hidden');
+      videoEl.classList.add('hidden');
+      
+      let progress = 0;
+      const int = setInterval(() => {
+        progress += 8 + Math.random() * 15;
+        if (progress > 98) progress = 98;
+        progressBar.style.width = progress + '%';
+        progressText.textContent = Math.floor(progress) + '%';
+        
+        if (progress >= 98) {
+          clearInterval(int);
+          // Demo video (replace with your own generated clip later)
+          videoEl.src = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+          videoEl.classList.remove('hidden');
+          document.getElementById('progress-container').style.display = 'none';
+        }
+      }, 120);
+    }
+
+    function downloadVideo() {
+      const v = document.getElementById('output-video');
+      if (v.src) {
+        const a = document.createElement('a');
+        a.href = v.src;
+        a.download = 'ltx-video-output.mp4';
+        a.click();
       }
     }
-    </script>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="./main.jsx"></script>
-  </body>
+
+    function resetUI() {
+      document.getElementById('result').classList.add('hidden');
+      document.getElementById('progress-container').style.display = 'block';
+    }
+  </script>
+</body>
 </html>
